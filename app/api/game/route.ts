@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
-import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { getCurrentUser, getCountryCode } from "@/app/auth";
 import {
   buildPuzzle,
   correctDriverCode,
   getAttemptKey,
   getChallengeNumber,
   getDailyStat,
-  getUtcDateKey,
+  getDriverTeamArt,
+  getChallengeDateKey,
   MAX_MISTAKES,
   RULESET,
 } from "@/app/game-data";
 import {
   completeAttempt,
-  ensureUser,
   getLeaderboards,
   getOrCreateAttempt,
   getPlayerStats,
@@ -24,19 +24,18 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
-    const user = await getChatGPTUser();
+    const user = await getCurrentUser(request);
     if (!user) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
 
-    const countryCode = getCountryCode(request);
-    await ensureUser(user, countryCode);
-    const dateKey = getUtcDateKey();
-    const attempt = await getOrCreateAttempt(user.userId, getAttemptKey(dateKey));
+    const countryCode = user.countryCode ?? getCountryCode(request);
+    const dateKey = getChallengeDateKey();
+    const attempt = await getOrCreateAttempt(user.id, getAttemptKey(dateKey));
     return NextResponse.json(
       toGameState(
         dateKey,
         attempt.answers,
         attempt.completed,
-        await getPlayerContext(user.userId, dateKey, countryCode),
+        await getPlayerContext(user.id, dateKey, countryCode, user.favoriteTeam),
       ),
     );
   } catch (error) {
@@ -50,7 +49,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const user = await getChatGPTUser();
+    const user = await getCurrentUser(request);
     if (!user) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
 
     const body = (await request.json()) as { choice?: unknown };
@@ -58,17 +57,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Choose a driver." }, { status: 400 });
     }
 
-    const countryCode = getCountryCode(request);
-    await ensureUser(user, countryCode);
-    const dateKey = getUtcDateKey();
-    const attempt = await getOrCreateAttempt(user.userId, getAttemptKey(dateKey));
+    const countryCode = user.countryCode ?? getCountryCode(request);
+    const dateKey = getChallengeDateKey();
+    const attempt = await getOrCreateAttempt(user.id, getAttemptKey(dateKey));
     if (attempt.completed) {
       return NextResponse.json(
         toGameState(
           dateKey,
           attempt.answers,
           true,
-          await getPlayerContext(user.userId, dateKey, countryCode),
+          await getPlayerContext(user.id, dateKey, countryCode, user.favoriteTeam),
         ),
         { status: 409 },
       );
@@ -96,12 +94,13 @@ export async function POST(request: Request) {
         dateKey,
         answers,
         completed,
-        await getPlayerContext(user.userId, dateKey, countryCode),
+        await getPlayerContext(user.id, dateKey, countryCode, user.favoriteTeam),
       ),
       reveal: {
         correct: answers[roundIndex]?.correct ?? false,
         correctCode,
         selectedCode: body.choice,
+        values: Object.fromEntries(puzzle.drivers.map((driver) => [driver.code, driver[puzzle.stat.key]])),
       },
     });
   } catch (error) {
@@ -139,28 +138,19 @@ function toGameState(
     stats: context.stats,
     leaderboards: context.leaderboards,
     countryCode: context.countryCode,
+    favoriteTeam: context.favoriteTeam,
     category: { label: dailyStat.label, question: dailyStat.question },
     puzzle: completed ? null : {
       roundIndex: answers.length,
-      drivers: puzzle.drivers.map(({ first, last, code }) => ({ first, last, code })),
+      drivers: puzzle.drivers.map(({ first, last, code }) => ({ first, last, code, ...getDriverTeamArt(code) })),
     },
   };
 }
 
-async function getPlayerContext(userId: string, dateKey: string, countryCode: string | null) {
+async function getPlayerContext(userId: string, dateKey: string, countryCode: string | null, favoriteTeam: string) {
   const [stats, leaderboards] = await Promise.all([
     getPlayerStats(userId, RULESET),
-    getLeaderboards(getAttemptKey(dateKey), userId, countryCode),
+    getLeaderboards(getAttemptKey(dateKey), userId, countryCode, favoriteTeam),
   ]);
-  return { stats, leaderboards, countryCode };
-}
-
-function getCountryCode(request: Request): string | null {
-  const cloudflareCountry = (request as Request & { cf?: { country?: string } }).cf?.country;
-  const candidate =
-    cloudflareCountry ??
-    request.headers.get("cf-ipcountry") ??
-    request.headers.get("x-vercel-ip-country");
-  const normalized = candidate?.trim().toUpperCase();
-  return normalized && /^[A-Z]{2}$/.test(normalized) && normalized !== "XX" ? normalized : null;
+  return { stats, leaderboards, countryCode, favoriteTeam };
 }

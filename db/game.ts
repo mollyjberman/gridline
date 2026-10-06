@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import type { ChatGPTUser } from "@/app/chatgpt-auth";
+import { getChallengeDateKey } from "@/app/game-data";
 
 export type StoredAnswer = {
   roundIndex: number;
@@ -19,19 +19,6 @@ export type LeaderboardEntry = {
   score: number;
   isCurrentUser: boolean;
 };
-
-export async function ensureUser(user: ChatGPTUser, countryCode: string | null): Promise<void> {
-  const publicName = user.fullName?.trim() || `Racer ${user.userId.slice(-4).toUpperCase()}`;
-  await env.DB.prepare(
-    `INSERT INTO users (id, email, display_name, country_code, created_at, updated_at)
-     VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-     ON CONFLICT(id) DO UPDATE SET
-       email = excluded.email,
-       display_name = excluded.display_name,
-       country_code = COALESCE(excluded.country_code, users.country_code),
-       updated_at = datetime('now')`,
-  ).bind(user.userId, user.email, publicName, countryCode).run();
-}
 
 export async function getOrCreateAttempt(userId: string, dateKey: string): Promise<Attempt> {
   await env.DB.prepare(
@@ -74,26 +61,48 @@ export async function completeAttempt(attemptId: number, score: number): Promise
 
 export async function getPlayerStats(userId: string, ruleset: string): Promise<{
   played: number;
-  average: number | null;
+  highest: number | null;
   streak: number;
+  overallRank: number | null;
 }> {
-  const summary = await env.DB.prepare(
-    `SELECT COUNT(*) AS played, AVG(score) AS average
+  const [summary, overall, rows] = await Promise.all([env.DB.prepare(
+    `SELECT COUNT(*) AS played, MAX(score) AS highest
      FROM daily_attempts
      WHERE user_id = ? AND completed = 1 AND challenge_date LIKE ?`,
-  ).bind(userId, `%:${ruleset}`).first<{ played: number; average: number | null }>();
-  const rows = await env.DB.prepare(
+  ).bind(userId, `%:${ruleset}`).first<{ played: number; highest: number | null }>(), env.DB.prepare(
+    `WITH daily_ranked AS (
+       SELECT user_id,
+              RANK() OVER (
+                PARTITION BY challenge_date
+                ORDER BY score DESC, completed_at ASC, user_id ASC
+              ) AS daily_rank
+       FROM daily_attempts
+       WHERE completed = 1 AND challenge_date LIKE ?
+     ), average_ranks AS (
+       SELECT user_id, AVG(daily_rank) AS average_rank
+       FROM daily_ranked
+       GROUP BY user_id
+     ), overall_ranked AS (
+       SELECT user_id,
+              RANK() OVER (ORDER BY average_rank ASC) AS overall_rank
+       FROM average_ranks
+     )
+     SELECT overall_rank AS overallRank
+     FROM overall_ranked
+     WHERE user_id = ?`,
+  ).bind(`%:${ruleset}`, userId).first<{ overallRank: number }>(), env.DB.prepare(
     `SELECT challenge_date AS challengeDate
      FROM daily_attempts
      WHERE user_id = ? AND completed = 1 AND challenge_date LIKE ?
      ORDER BY challenge_date DESC
      LIMIT 366`,
-  ).bind(userId, `%:${ruleset}`).all<{ challengeDate: string }>();
+  ).bind(userId, `%:${ruleset}`).all<{ challengeDate: string }>()]);
 
   return {
     played: Number(summary?.played ?? 0),
-    average: summary?.average == null ? null : Number(summary.average),
+    highest: summary?.highest == null ? null : Number(summary.highest),
     streak: calculateStreak(rows.results.map((row) => row.challengeDate)),
+    overallRank: overall?.overallRank == null ? null : Number(overall.overallRank),
   };
 }
 
@@ -101,42 +110,43 @@ export async function getLeaderboards(
   attemptKey: string,
   userId: string,
   countryCode: string | null,
-): Promise<{ worldwide: LeaderboardEntry[]; national: LeaderboardEntry[] }> {
+  favoriteTeam: string,
+): Promise<{ worldwide: LeaderboardEntry[]; national: LeaderboardEntry[]; team: LeaderboardEntry[] }> {
   const worldwide = await queryLeaderboard(attemptKey, userId);
   const national = countryCode ? await queryLeaderboard(attemptKey, userId, countryCode) : [];
-  return { worldwide, national };
+  const team = await queryLeaderboard(attemptKey, userId, undefined, favoriteTeam);
+  return { worldwide, national, team };
 }
 
 async function queryLeaderboard(
   attemptKey: string,
   userId: string,
   countryCode?: string,
+  favoriteTeam?: string,
 ): Promise<LeaderboardEntry[]> {
   const countryClause = countryCode ? "AND u.country_code = ?" : "";
+  const teamClause = favoriteTeam ? "AND u.favorite_team = ?" : "";
   const statement = env.DB.prepare(
     `WITH ranked AS (
        SELECT
          da.user_id AS userId,
-         u.display_name AS name,
+         u.username AS name,
          da.score AS score,
          ROW_NUMBER() OVER (ORDER BY da.score DESC, da.completed_at ASC, da.user_id ASC) AS rank
        FROM daily_attempts da
        JOIN users u ON u.id = da.user_id
-       WHERE da.challenge_date = ? AND da.completed = 1 ${countryClause}
+       WHERE da.challenge_date = ?
+         AND da.completed = 1
+         AND u.username IS NOT NULL
+         ${countryClause} ${teamClause}
      )
      SELECT rank, userId, name, score
      FROM ranked
      WHERE rank <= 10 OR userId = ?
      ORDER BY rank`,
   );
-  const rows = countryCode
-    ? await statement.bind(attemptKey, countryCode, userId).all<{
-        rank: number;
-        userId: string;
-        name: string;
-        score: number;
-      }>()
-    : await statement.bind(attemptKey, userId).all<{
+  const filters = [attemptKey, ...(countryCode ? [countryCode] : []), ...(favoriteTeam ? [favoriteTeam] : []), userId];
+  const rows = await statement.bind(...filters).all<{
         rank: number;
         userId: string;
         name: string;
@@ -164,8 +174,7 @@ function calculateStreak(attemptKeys: string[]): number {
   const dateKeys = attemptKeys.map((key) => key.split(":", 1)[0]);
   if (dateKeys.length === 0) return 0;
   const completedDates = new Set(dateKeys);
-  const cursor = new Date();
-  cursor.setUTCHours(0, 0, 0, 0);
+  const cursor = new Date(`${getChallengeDateKey()}T12:00:00Z`);
   if (!completedDates.has(cursor.toISOString().slice(0, 10))) cursor.setUTCDate(cursor.getUTCDate() - 1);
 
   let streak = 0;

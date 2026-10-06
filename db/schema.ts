@@ -4,10 +4,21 @@ export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   email: text("email").notNull(),
   displayName: text("display_name").notNull(),
+  username: text("username"),
+  passwordHash: text("password_hash"),
+  favoriteTeam: text("favorite_team"),
   countryCode: text("country_code"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
-});
+}, (table) => [uniqueIndex("users_username_unique").on(table.username)]);
+
+export const sessions = sqliteTable("sessions", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id),
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (table) => [uniqueIndex("sessions_token_hash_unique").on(table.tokenHash)]);
 
 export const dailyAttempts = sqliteTable(
   "daily_attempts",
