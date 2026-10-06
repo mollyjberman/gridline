@@ -103,7 +103,7 @@ export function Game() {
       <section className="gameShell" aria-labelledby="game-title">
         <div className="eyebrowRow">
           <span className="liveDot" aria-hidden="true" />
-          <span id="game-title">DAILY CHALLENGE #{state.challengeNumber}</span>
+          <span id="game-title">ISSUE #{state.challengeNumber} · THE DAILY GRID</span>
           <span className="roundLabel">
             {state.completed ? "RUN COMPLETE" : `PICK ${(state.puzzle?.roundIndex ?? 0) + 1} OF ${TOTAL_ROUNDS}`}
           </span>
@@ -112,9 +112,10 @@ export function Game() {
           <Complete state={state} countdown={countdown} />
         ) : (
           <div className="gameScreen">
+            <div className="comicBurst" aria-hidden="true"><span>HIGHER</span><b>OR</b><span>LOWER?</span></div>
             <Progress answers={state.answers} current={state.puzzle?.roundIndex ?? 0} />
             <p className="prompt">
-              Does <strong>{state.puzzle?.mystery.first} {state.puzzle?.mystery.last}</strong> have a higher or lower total?
+              <span>YOUR CALL!</span> Does <strong>{state.puzzle?.mystery.first} {state.puzzle?.mystery.last}</strong> have a higher or lower total?
             </p>
             {state.puzzle && <Duel puzzle={state.puzzle} reveal={reveal} />}
             {reveal ? (
@@ -142,9 +143,9 @@ export function Game() {
 function Duel({ puzzle, reveal }: { puzzle: NonNullable<GameState["puzzle"]>; reveal: NonNullable<GameState["reveal"]> | null }) {
   return (
     <div className="duel">
-      <DriverCard label="ON THE BOARD" driver={puzzle.known} stat={puzzle.stat} value={puzzle.known[puzzle.stat.key]} />
+      <DriverCard label="THE BENCHMARK" driver={puzzle.known} stat={puzzle.stat} value={puzzle.known[puzzle.stat.key]} />
       <div className="versus" aria-hidden="true">VS</div>
-      <DriverCard label="YOUR CALL" driver={puzzle.mystery} stat={puzzle.stat} value={reveal?.value} mystery={!reveal} result={reveal?.correct} />
+      <DriverCard label="THE CHALLENGER" driver={puzzle.mystery} stat={puzzle.stat} value={reveal?.value} mystery={!reveal} result={reveal?.correct} />
     </div>
   );
 }
@@ -179,7 +180,7 @@ function ChoiceButton({ choice, reference, disabled, onChoose }: {
   return (
     <button className="choice" disabled={disabled} onClick={() => onChoose(choice)}>
       <span className="choiceIcon">{choice === "higher" ? "+" : "−"}</span>
-      <span><b>{choice.toUpperCase()}</b><small>{choice === "higher" ? "MORE" : "LESS"} THAN {reference}</small></span>
+      <span><b>{choice.toUpperCase()}!</b><small>{choice === "higher" ? "MORE" : "LESS"} THAN {reference}</small></span>
     </button>
   );
 }
@@ -204,7 +205,7 @@ function Complete({ state, countdown }: { state: GameState; countdown: string })
   }
   return (
     <div className="completeScreen">
-      <div><p className="kicker">CHEQUERED FLAG</p><h1><span>{state.score}/{TOTAL_ROUNDS}</span> CORRECT</h1><p>Your score is saved to your account. Come back after the UTC reset for a fresh grid.</p></div>
+      <div><p className="kicker">THE FINAL PANEL</p><h1><span>{state.score}/{TOTAL_ROUNDS}</span> CORRECT!</h1><p>Your score is inked into the record. Come back after the UTC reset for a fresh issue.</p></div>
       <div className="shareGrid" aria-label={`${state.score} correct out of ${TOTAL_ROUNDS}`}>
         {state.answers.map((answer, index) => <span key={index} className={`shareCell ${answer ? "correct" : ""}`} aria-hidden="true" />)}
       </div>

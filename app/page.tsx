@@ -11,8 +11,7 @@ export default async function Home() {
       <header className="topbar">
         <div className="brand" aria-label="Gridline Daily">
           <span className="brandMark" aria-hidden="true" />
-          <span>GRIDLINE</span>
-          <span className="brandLight">DAILY</span>
+          <span className="brandLockup"><b>GRIDLINE</b><small>RACING COMICS</small></span>
         </div>
         <div className="account">
           <span className="accountName">{user.displayName}</span>
@@ -21,7 +20,7 @@ export default async function Home() {
       </header>
       <Game />
       <footer>
-        <span>UNOFFICIAL FAN GAME</span>
+        <span>GRIDLINE PRESS · UNOFFICIAL FAN GAME</span>
         <span>CAREER STATS THROUGH THE 2024 SEASON</span>
       </footer>
     </main>
