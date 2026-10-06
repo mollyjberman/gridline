@@ -367,3 +367,109 @@ footer { color: #c8c8cf; }
   .completeScreen { min-height: 590px; padding: 128px 24px 42px; }
   .completeActions { align-items: flex-start; flex-direction: column; }
 }
+
+/* Three-lives name-pick game */
+.scoreboard {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin: -54px 0 22px auto;
+}
+
+.scoreboard > div {
+  min-width: 112px;
+  padding: 9px 12px;
+  transform: rotate(1deg);
+  border: 4px solid var(--ink);
+  background: #fff;
+  box-shadow: 5px 5px 0 var(--ink);
+}
+
+.scoreboard small,
+.categoryBox small {
+  display: block;
+  color: #4d4f54;
+  font-size: .7rem;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.scoreboard strong {
+  font: 700 2rem/1 Impact, Haettenschweiler, sans-serif;
+}
+
+.lives span { display: flex; gap: 5px; margin-top: 4px; }
+.lives b { font-size: 1.45rem; line-height: 1; -webkit-text-stroke: 2px var(--ink); }
+.lives .alive { color: var(--comic-red); }
+.lives .lost { color: #c9c2b2; }
+
+.categoryBox {
+  width: fit-content;
+  margin: 0 auto 18px;
+  padding: 10px 24px;
+  transform: rotate(-1deg);
+  border: 4px solid var(--ink);
+  background: var(--comic-yellow);
+  box-shadow: 6px 6px 0 var(--ink);
+  text-align: center;
+}
+
+.categoryBox strong {
+  display: block;
+  margin-top: 2px;
+  font: 700 clamp(1.6rem, 4vw, 2.6rem)/1 Impact, Haettenschweiler, sans-serif;
+  letter-spacing: .04em;
+}
+
+.duel {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 26px;
+}
+
+.driverSlot { position: relative; min-width: 0; }
+.driverSlot .versus {
+  position: absolute;
+  z-index: 5;
+  top: 50%;
+  left: -44px;
+  transform: translateY(-50%) rotate(-6deg);
+}
+
+.driverChoice {
+  width: 100%;
+  min-height: 330px;
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.driverChoice.cyan { background: var(--comic-cyan); color: var(--ink); }
+.driverChoice:hover:not(:disabled) { transform: translate(-2px, -2px) rotate(-.4deg); box-shadow: 11px 11px 0 var(--ink); }
+.driverChoice:disabled { cursor: default; }
+.driverChoice.correct { background: var(--green); color: var(--ink); }
+.driverChoice.wrong { background: var(--comic-red); color: #fff; filter: saturate(.7); }
+.driverChoice.wrong::after {
+  position: absolute;
+  z-index: 3;
+  inset: 50% 10% auto;
+  height: 9px;
+  transform: rotate(-18deg);
+  background: var(--ink);
+  content: "";
+}
+
+.driverChoice .helmetShape { display: grid; }
+.driverChoice .driverCopy { display: flex; flex-direction: column; }
+.driverChoice .driverCopy > span { color: currentColor; font-size: 1.2rem; font-weight: 900; text-transform: uppercase; }
+.driverChoice .driverCopy strong { color: currentColor; font: 700 clamp(2.8rem, 6vw, 4.8rem)/.85 Impact, Haettenschweiler, sans-serif; text-shadow: 3px 3px 0 rgb(0 0 0 / 24%); text-transform: uppercase; }
+.driverChoice .driverCopy small { width: fit-content; margin-top: 20px; padding: 6px 8px; border: 3px solid currentColor; color: currentColor; font-weight: 900; letter-spacing: .1em; }
+
+@media (max-width: 700px) {
+  .scoreboard { justify-content: center; margin: -45px 0 24px; }
+  .scoreboard > div { min-width: 104px; }
+  .categoryBox { padding-inline: 14px; }
+  .duel { grid-template-columns: 1fr; gap: 18px; }
+  .driverChoice { min-height: 230px; }
+  .driverSlot .versus { top: -36px; left: 50%; transform: translateX(-50%) rotate(-6deg); }
+  .driverChoice .driverCopy strong { font-size: clamp(2.7rem, 15vw, 4.2rem); }
+}

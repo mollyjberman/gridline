@@ -1,25 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Choice, Driver, StatKey } from "./game-data";
 
+type DriverChoice = { first: string; last: string; code: string };
 type GameState = {
   dateKey: string;
   challengeNumber: number;
   completed: boolean;
   score: number;
+  mistakes: number;
   answers: boolean[];
   stats: { played: number; average: number | null; streak: number };
-  puzzle: null | {
-    roundIndex: number;
-    known: Driver;
-    mystery: Pick<Driver, "first" | "last" | "code">;
-    stat: { key: StatKey; label: string };
-  };
-  reveal?: { value: number; correct: boolean; expectedChoice: Choice | null };
+  category: { label: string; question: string };
+  puzzle: null | { roundIndex: number; drivers: DriverChoice[] };
+  reveal?: { correct: boolean; correctCode: string; selectedCode: string };
 };
 
-const TOTAL_ROUNDS = 5;
+const MAX_MISTAKES = 3;
 
 export function Game() {
   const [state, setState] = useState<GameState | null>(null);
@@ -53,17 +50,16 @@ export function Game() {
       });
     return () => { active = false; };
   }, []);
+
   useEffect(() => {
     const timer = window.setInterval(() => {
-      const seconds = secondsUntilUtcMidnight();
-      setSecondsLeft(seconds);
-      const utcDate = new Date().toISOString().slice(0, 10);
-      if (state && utcDate !== state.dateKey) window.location.reload();
+      setSecondsLeft(secondsUntilUtcMidnight());
+      if (state && new Date().toISOString().slice(0, 10) !== state.dateKey) window.location.reload();
     }, 1_000);
     return () => window.clearInterval(timer);
   }, [state]);
 
-  async function submit(choice: Choice) {
+  async function chooseDriver(code: string) {
     if (submitting || reveal || !state?.puzzle) return;
     setSubmitting(true);
     setError(null);
@@ -71,7 +67,7 @@ export function Game() {
       const response = await fetch("/api/game", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ choice }),
+        body: JSON.stringify({ choice: code }),
       });
       const body = (await response.json()) as GameState & { error?: string };
       if (!response.ok && response.status !== 409) {
@@ -104,31 +100,38 @@ export function Game() {
         <div className="eyebrowRow">
           <span className="liveDot" aria-hidden="true" />
           <span id="game-title">ISSUE #{state.challengeNumber} · THE DAILY GRID</span>
-          <span className="roundLabel">
-            {state.completed ? "RUN COMPLETE" : `PICK ${(state.puzzle?.roundIndex ?? 0) + 1} OF ${TOTAL_ROUNDS}`}
-          </span>
+          <span className="roundLabel">{state.completed ? "RUN COMPLETE" : `ROUND ${state.answers.length + 1}`}</span>
         </div>
         {state.completed ? (
           <Complete state={state} countdown={countdown} />
         ) : (
           <div className="gameScreen">
-            <div className="comicBurst" aria-hidden="true"><span>HIGHER</span><b>OR</b><span>LOWER?</span></div>
-            <Progress answers={state.answers} current={state.puzzle?.roundIndex ?? 0} />
-            <p className="prompt">
-              <span>YOUR CALL!</span> Does <strong>{state.puzzle?.mystery.first} {state.puzzle?.mystery.last}</strong> have a higher or lower total?
-            </p>
-            {state.puzzle && <Duel puzzle={state.puzzle} reveal={reveal} />}
-            {reveal ? (
-              <div className="resultPanel" role="status">
-                <p>{reveal.correct ? "Nailed it. That's the right call." : `Not this time—it was ${reveal.expectedChoice ?? "a tie"}.`}</p>
-                <button className="primaryButton" onClick={continueGame}>
-                  {pendingState?.completed ? "SEE RESULT" : "NEXT COMPARISON"}
-                </button>
+            <div className="comicBurst" aria-hidden="true"><span>WHO</span><b>HAS</b><span>MORE?</span></div>
+            <Scoreboard score={state.score} mistakes={state.mistakes} />
+            <div className="categoryBox"><small>TODAY&apos;S CATEGORY</small><strong>{state.category.label}</strong></div>
+            <p className="prompt"><span>YOUR CALL!</span> {state.category.question}</p>
+            {state.puzzle && (
+              <div className="duel">
+                {state.puzzle.drivers.map((driver, index) => (
+                  <div className="driverSlot" key={driver.code}>
+                    {index === 1 && <div className="versus" aria-hidden="true">VS</div>}
+                    <DriverButton
+                      driver={driver}
+                      side={index === 0 ? "red" : "cyan"}
+                      disabled={submitting || Boolean(reveal)}
+                      reveal={reveal}
+                      onChoose={chooseDriver}
+                    />
+                  </div>
+                ))}
               </div>
-            ) : (
-              <div className="choiceButtons">
-                <ChoiceButton choice="higher" reference={state.puzzle?.known[state.puzzle.stat.key] ?? 0} disabled={submitting} onChoose={submit} />
-                <ChoiceButton choice="lower" reference={state.puzzle?.known[state.puzzle.stat.key] ?? 0} disabled={submitting} onChoose={submit} />
+            )}
+            {reveal && (
+              <div className="resultPanel" role="status">
+                <p>{reveal.correct ? "CORRECT! Keep the streak alive." : `MISS! ${driverName(state.puzzle?.drivers, reveal.correctCode)} was higher.`}</p>
+                <button className="primaryButton" onClick={continueGame}>
+                  {pendingState?.completed ? "SEE FINAL SCORE" : "NEXT MATCHUP"}
+                </button>
               </div>
             )}
             {error && <p className="inlineError" role="alert">{error}</p>}
@@ -140,114 +143,59 @@ export function Game() {
   );
 }
 
-function Duel({ puzzle, reveal }: { puzzle: NonNullable<GameState["puzzle"]>; reveal: NonNullable<GameState["reveal"]> | null }) {
-  return (
-    <div className="duel">
-      <DriverCard label="THE BENCHMARK" driver={puzzle.known} stat={puzzle.stat} value={puzzle.known[puzzle.stat.key]} />
-      <div className="versus" aria-hidden="true">VS</div>
-      <DriverCard label="THE CHALLENGER" driver={puzzle.mystery} stat={puzzle.stat} value={reveal?.value} mystery={!reveal} result={reveal?.correct} />
-    </div>
-  );
-}
-
-function DriverCard({ label, driver, stat, value, mystery = false, result }: {
-  label: string;
-  driver: Pick<Driver, "first" | "last" | "code">;
-  stat: { key: StatKey; label: string };
-  value?: number;
-  mystery?: boolean;
-  result?: boolean;
-}) {
-  const resultClass = result === undefined ? "" : result ? " correct" : " wrong";
-  return (
-    <article className={`driverCard${mystery ? " mysteryCard" : ""}${resultClass}`}>
-      <div className="cardTopline"><span>{label}</span><span>{driver.code}</span></div>
-      <div className={`helmetShape${mystery ? " mystery" : ""}`} aria-hidden="true">{mystery ? "?" : driver.code}</div>
-      <div className="driverCopy">
-        <p>{driver.first}</p><h2>{driver.last}</h2>
-        <div className="stat"><span>{value ?? "?"}</span><small>{stat.label}</small></div>
-      </div>
-    </article>
-  );
-}
-
-function ChoiceButton({ choice, reference, disabled, onChoose }: {
-  choice: Choice;
-  reference: number;
+function DriverButton({ driver, side, disabled, reveal, onChoose }: {
+  driver: DriverChoice;
+  side: "red" | "cyan";
   disabled: boolean;
-  onChoose: (choice: Choice) => void;
+  reveal: NonNullable<GameState["reveal"]> | null;
+  onChoose: (code: string) => void;
 }) {
+  const isCorrect = reveal?.correctCode === driver.code;
+  const isWrongPick = reveal?.selectedCode === driver.code && !reveal.correct;
+  const resultClass = isCorrect ? " correct" : isWrongPick ? " wrong" : "";
   return (
-    <button className="choice" disabled={disabled} onClick={() => onChoose(choice)}>
-      <span className="choiceIcon">{choice === "higher" ? "+" : "−"}</span>
-      <span><b>{choice.toUpperCase()}!</b><small>{choice === "higher" ? "MORE" : "LESS"} THAN {reference}</small></span>
+    <button className={`driverCard driverChoice ${side}${resultClass}`} disabled={disabled} onClick={() => onChoose(driver.code)}>
+      <span className="cardTopline"><span>{side === "red" ? "CONTENDER A" : "CONTENDER B"}</span></span>
+      <span className="helmetShape" aria-hidden="true">{driver.code}</span>
+      <span className="driverCopy"><span>{driver.first}</span><strong>{driver.last}</strong><small>CLICK TO CHOOSE</small></span>
     </button>
   );
 }
 
-function Progress({ answers, current }: { answers: boolean[]; current: number }) {
+function Scoreboard({ score, mistakes }: { score: number; mistakes: number }) {
   return (
-    <div className="progressRow" role="status" aria-label={`Round ${current + 1} of ${TOTAL_ROUNDS}. ${answers.filter(Boolean).length} correct so far.`}>
-      {Array.from({ length: TOTAL_ROUNDS }, (_, index) => {
-        const className = index < answers.length ? (answers[index] ? "correct" : "wrong") : index === current ? "current" : "";
-        return <span key={index} className={`progressSegment ${className}`} aria-hidden="true" />;
-      })}
+    <div className="scoreboard" role="status" aria-label={`${score} correct. ${MAX_MISTAKES - mistakes} lives remaining.`}>
+      <div><small>SCORE</small><strong>{score}</strong></div>
+      <div className="lives"><small>LIVES</small><span>{Array.from({ length: MAX_MISTAKES }, (_, index) => <b key={index} className={index < MAX_MISTAKES - mistakes ? "alive" : "lost"}>♥</b>)}</span></div>
     </div>
   );
 }
 
 function Complete({ state, countdown }: { state: GameState; countdown: string }) {
-  const blocks = state.answers.map((answer) => answer ? "🟩" : "🟥").join("");
-  const shareText = `Gridline Daily #${state.challengeNumber} — ${state.score}/${TOTAL_ROUNDS}\n${blocks}\nCan you beat my lap?`;
+  const shareText = `Gridline Daily #${state.challengeNumber}\n🏁 ${state.score} correct · three lives\nCan you beat my run?`;
   async function share() {
     if (navigator.share) await navigator.share({ text: shareText }).catch(() => undefined);
     else await navigator.clipboard.writeText(shareText);
   }
   return (
     <div className="completeScreen">
-      <div><p className="kicker">THE FINAL PANEL</p><h1><span>{state.score}/{TOTAL_ROUNDS}</span> CORRECT!</h1><p>Your score is inked into the record. Come back after the UTC reset for a fresh issue.</p></div>
-      <div className="shareGrid" aria-label={`${state.score} correct out of ${TOTAL_ROUNDS}`}>
-        {state.answers.map((answer, index) => <span key={index} className={`shareCell ${answer ? "correct" : ""}`} aria-hidden="true" />)}
-      </div>
+      <div><p className="kicker">THREE STRIKES · CHEQUERED FLAG</p><h1><span>{state.score}</span> CORRECT!</h1><p>Your score is inked into the record. Come back after the UTC reset for a fresh category and a new run.</p></div>
       <div className="completeActions"><button className="primaryButton" onClick={share}>SHARE RESULT</button><div className="countdown"><small>NEXT GRID IN</small><strong>{countdown}</strong></div></div>
     </div>
   );
 }
 
 function Stats({ state }: { state: GameState }) {
-  return (
-    <aside className="statsStrip" aria-label="Your saved stats">
-      <div><strong>{state.stats.played}</strong><span>PLAYED</span></div>
-      <div><strong>{state.stats.average?.toFixed(1) ?? "—"}</strong><span>AVG SCORE</span></div>
-      <div><strong>{state.stats.streak}</strong><span>DAY STREAK</span></div>
-    </aside>
-  );
+  return <aside className="statsStrip" aria-label="Your saved stats"><div><strong>{state.stats.played}</strong><span>RUNS</span></div><div><strong>{state.stats.average?.toFixed(1) ?? "—"}</strong><span>AVG SCORE</span></div><div><strong>{state.stats.streak}</strong><span>DAY STREAK</span></div></aside>;
 }
 
-function LoadingState() {
-  return <section className="stateCard" aria-live="polite"><div className="spinner" /><p>Loading today&apos;s grid…</p></section>;
+function driverName(drivers: DriverChoice[] | undefined, code: string) {
+  const driver = drivers?.find((candidate) => candidate.code === code);
+  return driver ? `${driver.first} ${driver.last}` : "The other driver";
 }
 
-function ErrorState({ message, retry }: { message: string; retry: () => Promise<void> }) {
-  return <section className="stateCard"><p role="alert">{message}</p><button className="primaryButton" onClick={() => void retry()}>TRY AGAIN</button></section>;
-}
-
-async function fetchGameState(): Promise<GameState> {
-  const response = await fetch("/api/game", { cache: "no-store" });
-  const body = (await response.json()) as GameState & { error?: string };
-  if (!response.ok) throw new Error(body.error ?? "Unable to load your game.");
-  return body;
-}
-
-function secondsUntilUtcMidnight() {
-  const now = new Date();
-  const next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
-  return Math.max(0, Math.floor((next - now.getTime()) / 1_000));
-}
-
-function formatCountdown(seconds: number) {
-  const hours = String(Math.floor(seconds / 3_600)).padStart(2, "0");
-  const minutes = String(Math.floor((seconds % 3_600) / 60)).padStart(2, "0");
-  const remaining = String(seconds % 60).padStart(2, "0");
-  return `${hours}:${minutes}:${remaining}`;
-}
+function LoadingState() { return <section className="stateCard" aria-live="polite"><div className="spinner" /><p>Loading today&apos;s grid…</p></section>; }
+function ErrorState({ message, retry }: { message: string; retry: () => Promise<void> }) { return <section className="stateCard"><p role="alert">{message}</p><button className="primaryButton" onClick={() => void retry()}>TRY AGAIN</button></section>; }
+async function fetchGameState(): Promise<GameState> { const response = await fetch("/api/game", { cache: "no-store" }); const body = (await response.json()) as GameState & { error?: string }; if (!response.ok) throw new Error(body.error ?? "Unable to load your game."); return body; }
+function secondsUntilUtcMidnight() { const now = new Date(); const next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1); return Math.max(0, Math.floor((next - now.getTime()) / 1_000)); }
+function formatCountdown(seconds: number) { const hours = String(Math.floor(seconds / 3_600)).padStart(2, "0"); const minutes = String(Math.floor((seconds % 3_600) / 60)).padStart(2, "0"); const remaining = String(seconds % 60).padStart(2, "0"); return `${hours}:${minutes}:${remaining}`; }

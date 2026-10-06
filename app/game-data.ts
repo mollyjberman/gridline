@@ -1,5 +1,4 @@
 export type StatKey = "wins" | "podiums" | "poles" | "titles";
-export type Choice = "higher" | "lower";
 
 export type Driver = {
   first: string;
@@ -11,11 +10,8 @@ export type Driver = {
   titles: number;
 };
 
-export type Puzzle = {
-  known: Driver;
-  mystery: Driver;
-  stat: { key: StatKey; label: string };
-};
+export type DailyStat = { key: StatKey; label: string; question: string };
+export type Puzzle = { drivers: [Driver, Driver]; stat: DailyStat };
 
 const DRIVERS: Driver[] = [
   { first: "Lewis", last: "Hamilton", code: "HAM", wins: 105, podiums: 202, poles: 104, titles: 7 },
@@ -35,17 +31,22 @@ const DRIVERS: Driver[] = [
   { first: "Mika", last: "Häkkinen", code: "HAK", wins: 20, podiums: 51, poles: 26, titles: 2 },
 ];
 
-const STATS: Puzzle["stat"][] = [
-  { key: "wins", label: "CAREER WINS" },
-  { key: "podiums", label: "CAREER PODIUMS" },
-  { key: "poles", label: "POLE POSITIONS" },
-  { key: "titles", label: "WORLD TITLES" },
+const STATS: DailyStat[] = [
+  { key: "wins", label: "CAREER WINS", question: "Who has more career wins?" },
+  { key: "podiums", label: "CAREER PODIUMS", question: "Who has more career podiums?" },
+  { key: "poles", label: "POLE POSITIONS", question: "Who has more pole positions?" },
+  { key: "titles", label: "WORLD TITLES", question: "Who has more world titles?" },
 ];
 
-export const TOTAL_ROUNDS = 5;
+export const MAX_MISTAKES = 3;
+export const RULESET = "three-lives-v1";
 
 export function getUtcDateKey(date = new Date()): string {
   return date.toISOString().slice(0, 10);
+}
+
+export function getAttemptKey(dateKey: string): string {
+  return `${dateKey}:${RULESET}`;
 }
 
 export function getChallengeNumber(dateKey: string): number {
@@ -54,29 +55,23 @@ export function getChallengeNumber(dateKey: string): number {
   return Math.max(1, challengeDay - epochDay + 1);
 }
 
-export function buildPuzzles(dateKey: string): Puzzle[] {
+export function getDailyStat(dateKey: string): DailyStat {
   const random = createRandom(hash(dateKey));
-  const pool = seededShuffle(DRIVERS, random);
-
-  return Array.from({ length: TOTAL_ROUNDS }, (_, index) => {
-    const stat = STATS[Math.floor(random() * STATS.length)];
-    const known = pool[index * 2];
-    let mystery = pool[index * 2 + 1];
-    if (known[stat.key] === mystery[stat.key]) {
-      const replacementIndex = pool.findIndex(
-        (driver, candidateIndex) => candidateIndex >= TOTAL_ROUNDS * 2 && driver[stat.key] !== known[stat.key],
-      );
-      if (replacementIndex >= 0) [mystery, pool[replacementIndex]] = [pool[replacementIndex], mystery];
-    }
-    return { known, mystery, stat };
-  });
+  return STATS[Math.floor(random() * STATS.length)];
 }
 
-export function correctChoice(puzzle: Puzzle): Choice | null {
-  const knownValue = puzzle.known[puzzle.stat.key];
-  const mysteryValue = puzzle.mystery[puzzle.stat.key];
-  if (mysteryValue === knownValue) return null;
-  return mysteryValue > knownValue ? "higher" : "lower";
+export function buildPuzzle(dateKey: string, roundIndex: number): Puzzle {
+  const stat = getDailyStat(dateKey);
+  const pool = seededShuffle(DRIVERS, createRandom(hash(`${dateKey}:${roundIndex}`)));
+  const first = pool[0];
+  const second = pool.find((driver) => driver[stat.key] !== first[stat.key]);
+  if (!second) throw new Error("No valid comparison is available.");
+  return { drivers: [first, second], stat };
+}
+
+export function correctDriverCode(puzzle: Puzzle): string {
+  const [first, second] = puzzle.drivers;
+  return first[puzzle.stat.key] > second[puzzle.stat.key] ? first.code : second.code;
 }
 
 function seededShuffle<T>(items: readonly T[], random: () => number): T[] {

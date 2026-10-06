@@ -3,7 +3,7 @@ import type { ChatGPTUser } from "@/app/chatgpt-auth";
 
 export type StoredAnswer = {
   roundIndex: number;
-  choice: "higher" | "lower";
+  choice: string;
   correct: boolean;
 };
 
@@ -44,7 +44,7 @@ export async function getOrCreateAttempt(userId: string, dateKey: string): Promi
 export async function recordAnswer(
   attemptId: number,
   roundIndex: number,
-  choice: "higher" | "lower",
+  choice: string,
   correct: boolean,
 ): Promise<StoredAnswer[]> {
   await env.DB.prepare(
@@ -63,7 +63,7 @@ export async function completeAttempt(attemptId: number, score: number): Promise
   ).bind(score, attemptId).run();
 }
 
-export async function getPlayerStats(userId: string): Promise<{
+export async function getPlayerStats(userId: string, ruleset: string): Promise<{
   played: number;
   average: number | null;
   streak: number;
@@ -71,15 +71,15 @@ export async function getPlayerStats(userId: string): Promise<{
   const summary = await env.DB.prepare(
     `SELECT COUNT(*) AS played, AVG(score) AS average
      FROM daily_attempts
-     WHERE user_id = ? AND completed = 1`,
-  ).bind(userId).first<{ played: number; average: number | null }>();
+     WHERE user_id = ? AND completed = 1 AND challenge_date LIKE ?`,
+  ).bind(userId, `%:${ruleset}`).first<{ played: number; average: number | null }>();
   const rows = await env.DB.prepare(
     `SELECT challenge_date AS challengeDate
      FROM daily_attempts
-     WHERE user_id = ? AND completed = 1
+     WHERE user_id = ? AND completed = 1 AND challenge_date LIKE ?
      ORDER BY challenge_date DESC
      LIMIT 366`,
-  ).bind(userId).all<{ challengeDate: string }>();
+  ).bind(userId, `%:${ruleset}`).all<{ challengeDate: string }>();
 
   return {
     played: Number(summary?.played ?? 0),
@@ -94,11 +94,12 @@ async function getAnswers(attemptId: number): Promise<StoredAnswer[]> {
      FROM attempt_answers
      WHERE attempt_id = ?
      ORDER BY round_index`,
-  ).bind(attemptId).all<{ roundIndex: number; choice: "higher" | "lower"; correct: number }>();
+  ).bind(attemptId).all<{ roundIndex: number; choice: string; correct: number }>();
   return rows.results.map((row) => ({ ...row, correct: row.correct === 1 }));
 }
 
-function calculateStreak(dateKeys: string[]): number {
+function calculateStreak(attemptKeys: string[]): number {
+  const dateKeys = attemptKeys.map((key) => key.split(":", 1)[0]);
   if (dateKeys.length === 0) return 0;
   const completedDates = new Set(dateKeys);
   const cursor = new Date();

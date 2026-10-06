@@ -28,7 +28,7 @@ export const attemptAnswers = sqliteTable(
     id: integer("id").primaryKey({ autoIncrement: true }),
     attemptId: integer("attempt_id").notNull().references(() => dailyAttempts.id),
     roundIndex: integer("round_index").notNull(),
-    choice: text("choice", { enum: ["higher", "lower"] }).notNull(),
+    choice: text("choice").notNull(),
     correct: integer("correct", { mode: "boolean" }).notNull(),
     answeredAt: text("answered_at").notNull(),
   },
