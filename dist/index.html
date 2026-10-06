@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b0b0d" />
+    <meta name="description" content="A once-a-day Formula racing higher or lower challenge." />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23ff3b30'/%3E%3Cpath d='M12 43 26 21h26L38 43H12Zm11-6h12l7-10H30l-7 10Z' fill='white'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>Gridline Daily</title>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Gridline Daily home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>GRIDLINE</span><span class="brand-light">DAILY</span>
+      </a>
+      <div class="header-meta">
+        <span id="challenge-number">CHALLENGE #---</span>
+        <span class="separator" aria-hidden="true"></span>
+        <button class="icon-button" id="how-button" aria-label="How to play">?</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="game-shell" aria-live="polite">
+        <div class="eyebrow-row">
+          <span class="live-dot"></span>
+          <span>DAILY CHALLENGE</span>
+          <span id="round-label" class="round-label">5 PICKS</span>
+        </div>
+
+        <div id="start-screen" class="start-screen">
+          <div>
+            <p class="kicker">LIGHTS OUT. THINK FAST.</p>
+            <h1>Five calls.<br /><span>One shot.</span></h1>
+            <p class="intro">Compare Formula racing legends across wins, poles, podiums and championships. Higher or lower—the grid resets tomorrow.</p>
+          </div>
+          <button id="start-button" class="primary-button">START TODAY'S RUN</button>
+        </div>
+
+        <div id="game-screen" class="game-screen hidden">
+          <div class="progress-row" id="progress-row" aria-label="Round progress"></div>
+          <p class="prompt">Does <strong id="challenger-name-prompt"></strong> have a higher or lower total?</p>
+          <div class="duel">
+            <article class="driver-card known-card">
+              <div class="card-topline"><span>ON THE BOARD</span><span id="known-code"></span></div>
+              <div class="helmet-shape" aria-hidden="true"><span id="known-initials"></span></div>
+              <div class="driver-copy">
+                <p id="known-first"></p><h2 id="known-last"></h2>
+                <div class="stat"><span id="known-value"></span><small id="known-stat"></small></div>
+              </div>
+            </article>
+
+            <div class="versus" aria-hidden="true">VS</div>
+
+            <article class="driver-card mystery-card" id="mystery-card">
+              <div class="card-topline"><span>YOUR CALL</span><span id="mystery-code"></span></div>
+              <div class="helmet-shape mystery" aria-hidden="true"><span id="mystery-initials"></span></div>
+              <div class="driver-copy">
+                <p id="mystery-first"></p><h2 id="mystery-last"></h2>
+                <div class="stat"><span id="mystery-value">?</span><small id="mystery-stat"></small></div>
+              </div>
+            </article>
+          </div>
+
+          <div id="choice-buttons" class="choice-buttons">
+            <button id="higher-button" class="choice higher"><span class="choice-icon">+</span><span><b>HIGHER</b><small>MORE THAN <span id="higher-reference"></span></small></span></button>
+            <button id="lower-button" class="choice lower"><span class="choice-icon">−</span><span><b>LOWER</b><small>LESS THAN <span id="lower-reference"></span></small></span></button>
+          </div>
+          <div id="result-panel" class="result-panel hidden">
+            <p id="result-message"></p>
+            <button id="next-button" class="primary-button">NEXT COMPARISON</button>
+          </div>
+        </div>
+
+        <div id="complete-screen" class="complete-screen hidden">
+          <p class="kicker">CHEQUERED FLAG</p>
+          <h1><span id="final-score">0/5</span> CORRECT</h1>
+          <p id="finish-copy" class="intro"></p>
+          <div id="share-grid" class="share-grid" aria-label="Your result"></div>
+          <div class="complete-actions">
+            <button id="share-button" class="primary-button">SHARE RESULT</button>
+            <div class="countdown"><small>NEXT GRID IN</small><strong id="countdown">--:--:--</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="stats-strip" aria-label="Your stats">
+        <div><strong id="played-stat">0</strong><span>PLAYED</span></div>
+        <div><strong id="average-stat">—</strong><span>AVG SCORE</span></div>
+        <div><strong id="streak-stat">0</strong><span>DAY STREAK</span></div>
+      </aside>
+    </main>
+
+    <footer><span>UNOFFICIAL FAN GAME</span><span>STATS UPDATED FOR THE 2024 SEASON</span></footer>
+
+    <dialog id="how-dialog">
+      <button id="close-dialog" class="dialog-close" aria-label="Close">×</button>
+      <p class="kicker">HOW TO PLAY</p>
+      <h2>Trust your racing knowledge.</h2>
+      <ol>
+        <li>Read the driver and stat on the left.</li>
+        <li>Guess if the next driver's total is higher or lower.</li>
+        <li>Make five calls. Your first run is your result for the day.</li>
+      </ol>
+      <p class="fine-print">Career totals are through the end of the 2024 season. Ties count as an incorrect pick.</p>
+    </dialog>
+    <div id="toast" class="toast" role="status"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
