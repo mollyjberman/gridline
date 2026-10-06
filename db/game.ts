@@ -13,15 +13,24 @@ export type Attempt = {
   answers: StoredAnswer[];
 };
 
-export async function ensureUser(user: ChatGPTUser): Promise<void> {
+export type LeaderboardEntry = {
+  rank: number;
+  name: string;
+  score: number;
+  isCurrentUser: boolean;
+};
+
+export async function ensureUser(user: ChatGPTUser, countryCode: string | null): Promise<void> {
+  const publicName = user.fullName?.trim() || `Racer ${user.userId.slice(-4).toUpperCase()}`;
   await env.DB.prepare(
-    `INSERT INTO users (id, email, display_name, created_at, updated_at)
-     VALUES (?, ?, ?, datetime('now'), datetime('now'))
+    `INSERT INTO users (id, email, display_name, country_code, created_at, updated_at)
+     VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
      ON CONFLICT(id) DO UPDATE SET
        email = excluded.email,
        display_name = excluded.display_name,
+       country_code = COALESCE(excluded.country_code, users.country_code),
        updated_at = datetime('now')`,
-  ).bind(user.userId, user.email, user.displayName).run();
+  ).bind(user.userId, user.email, publicName, countryCode).run();
 }
 
 export async function getOrCreateAttempt(userId: string, dateKey: string): Promise<Attempt> {
@@ -86,6 +95,59 @@ export async function getPlayerStats(userId: string, ruleset: string): Promise<{
     average: summary?.average == null ? null : Number(summary.average),
     streak: calculateStreak(rows.results.map((row) => row.challengeDate)),
   };
+}
+
+export async function getLeaderboards(
+  attemptKey: string,
+  userId: string,
+  countryCode: string | null,
+): Promise<{ worldwide: LeaderboardEntry[]; national: LeaderboardEntry[] }> {
+  const worldwide = await queryLeaderboard(attemptKey, userId);
+  const national = countryCode ? await queryLeaderboard(attemptKey, userId, countryCode) : [];
+  return { worldwide, national };
+}
+
+async function queryLeaderboard(
+  attemptKey: string,
+  userId: string,
+  countryCode?: string,
+): Promise<LeaderboardEntry[]> {
+  const countryClause = countryCode ? "AND u.country_code = ?" : "";
+  const statement = env.DB.prepare(
+    `WITH ranked AS (
+       SELECT
+         da.user_id AS userId,
+         u.display_name AS name,
+         da.score AS score,
+         ROW_NUMBER() OVER (ORDER BY da.score DESC, da.completed_at ASC, da.user_id ASC) AS rank
+       FROM daily_attempts da
+       JOIN users u ON u.id = da.user_id
+       WHERE da.challenge_date = ? AND da.completed = 1 ${countryClause}
+     )
+     SELECT rank, userId, name, score
+     FROM ranked
+     WHERE rank <= 10 OR userId = ?
+     ORDER BY rank`,
+  );
+  const rows = countryCode
+    ? await statement.bind(attemptKey, countryCode, userId).all<{
+        rank: number;
+        userId: string;
+        name: string;
+        score: number;
+      }>()
+    : await statement.bind(attemptKey, userId).all<{
+        rank: number;
+        userId: string;
+        name: string;
+        score: number;
+      }>();
+  return rows.results.map((row) => ({
+    rank: Number(row.rank),
+    name: row.name,
+    score: Number(row.score),
+    isCurrentUser: row.userId === userId,
+  }));
 }
 
 async function getAnswers(attemptId: number): Promise<StoredAnswer[]> {

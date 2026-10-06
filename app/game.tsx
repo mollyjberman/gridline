@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type DriverChoice = { first: string; last: string; code: string };
+type LeaderboardEntry = { rank: number; name: string; score: number; isCurrentUser: boolean };
 type GameState = {
   dateKey: string;
   challengeNumber: number;
@@ -11,6 +12,8 @@ type GameState = {
   mistakes: number;
   answers: boolean[];
   stats: { played: number; average: number | null; streak: number };
+  leaderboards: { worldwide: LeaderboardEntry[]; national: LeaderboardEntry[] };
+  countryCode: string | null;
   category: { label: string; question: string };
   puzzle: null | { roundIndex: number; drivers: DriverChoice[] };
   reveal?: { correct: boolean; correctCode: string; selectedCode: string };
@@ -139,6 +142,7 @@ export function Game() {
         )}
       </section>
       <Stats state={state} />
+      <Rankings state={state} />
     </>
   );
 }
@@ -187,6 +191,41 @@ function Complete({ state, countdown }: { state: GameState; countdown: string })
 
 function Stats({ state }: { state: GameState }) {
   return <aside className="statsStrip" aria-label="Your saved stats"><div><strong>{state.stats.played}</strong><span>RUNS</span></div><div><strong>{state.stats.average?.toFixed(1) ?? "—"}</strong><span>AVG SCORE</span></div><div><strong>{state.stats.streak}</strong><span>DAY STREAK</span></div></aside>;
+}
+
+function Rankings({ state }: { state: GameState }) {
+  const countryName = getCountryName(state.countryCode);
+  return (
+    <section className="rankings" aria-labelledby="rankings-title">
+      <div className="rankingsHeader">
+        <div><small>TODAY&apos;S PADDOCK</small><h2 id="rankings-title">RANKINGS</h2></div>
+        <span>Highest score wins · ties go to the earliest finish</span>
+      </div>
+      <div className="rankingGrid">
+        <RankingBoard title={countryName ? `${countryName} · NATIONAL` : "NATIONAL"} entries={state.leaderboards.national} unavailable={!state.countryCode} />
+        <RankingBoard title="WORLDWIDE" entries={state.leaderboards.worldwide} />
+      </div>
+    </section>
+  );
+}
+
+function RankingBoard({ title, entries, unavailable = false }: { title: string; entries: LeaderboardEntry[]; unavailable?: boolean }) {
+  return (
+    <article className="rankingBoard">
+      <h3>{title}</h3>
+      {unavailable ? <p className="rankingEmpty">Country is detected on the live Site.</p> : entries.length === 0 ? <p className="rankingEmpty">No finishers yet. Set the pace.</p> : (
+        <ol>
+          {entries.map((entry) => <li key={`${title}-${entry.rank}-${entry.name}`} className={entry.isCurrentUser ? "currentRacer" : ""}><b>#{entry.rank}</b><span>{entry.isCurrentUser ? "YOU" : entry.name}</span><strong>{entry.score}</strong></li>)}
+        </ol>
+      )}
+    </article>
+  );
+}
+
+function getCountryName(countryCode: string | null) {
+  if (!countryCode) return null;
+  try { return new Intl.DisplayNames(["en"], { type: "region" }).of(countryCode) ?? countryCode; }
+  catch { return countryCode; }
 }
 
 function driverName(drivers: DriverChoice[] | undefined, code: string) {

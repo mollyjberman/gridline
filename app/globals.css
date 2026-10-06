@@ -473,3 +473,65 @@ footer { color: #c8c8cf; }
   .driverSlot .versus { top: -36px; left: 50%; transform: translateX(-50%) rotate(-6deg); }
   .driverChoice .driverCopy strong { font-size: clamp(2.7rem, 15vw, 4.2rem); }
 }
+
+/* Daily national and worldwide rankings */
+.rankings {
+  width: min(1040px, calc(100% - 32px));
+  margin: 34px auto 0;
+  border: 5px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 10px 10px 0 var(--comic-cyan), 14px 14px 0 var(--ink);
+}
+
+.rankingsHeader {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 24px 18px;
+  border-bottom: 5px solid var(--ink);
+  background: radial-gradient(circle, rgb(0 0 0 / 13%) 1px, transparent 1.5px), var(--comic-yellow);
+  background-size: 8px 8px;
+}
+
+.rankingsHeader small {
+  font-size: .72rem;
+  font-weight: 900;
+  letter-spacing: .15em;
+}
+
+.rankingsHeader h2 {
+  margin: 2px 0 0;
+  font: 700 3rem/.9 Impact, Haettenschweiler, sans-serif;
+  letter-spacing: .04em;
+}
+
+.rankingsHeader > span {
+  max-width: 280px;
+  font-size: .78rem;
+  font-weight: 800;
+  text-align: right;
+}
+
+.rankingGrid { display: grid; grid-template-columns: 1fr 1fr; }
+.rankingBoard { min-width: 0; padding: 22px; }
+.rankingBoard + .rankingBoard { border-left: 5px solid var(--ink); }
+.rankingBoard h3 { width: fit-content; margin: 0 0 16px; padding: 7px 10px; transform: rotate(-1deg); border: 3px solid var(--ink); background: var(--comic-red); color: #fff; box-shadow: 4px 4px 0 var(--ink); font: 700 1.2rem Impact, sans-serif; letter-spacing: .07em; }
+.rankingBoard:nth-child(2) h3 { background: var(--comic-cyan); color: var(--ink); transform: rotate(1deg); }
+.rankingBoard ol { margin: 0; padding: 0; list-style: none; }
+.rankingBoard li { display: grid; grid-template-columns: 48px minmax(0, 1fr) 52px; align-items: center; min-height: 44px; padding: 7px 10px; border-bottom: 2px solid var(--ink); font-weight: 800; }
+.rankingBoard li:nth-child(odd) { background: rgb(255 255 255 / 58%); }
+.rankingBoard li > b { font-family: Impact, sans-serif; font-size: 1.1rem; }
+.rankingBoard li > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rankingBoard li > strong { font: 700 1.55rem Impact, sans-serif; text-align: right; }
+.rankingBoard .currentRacer { background: var(--comic-yellow); box-shadow: inset 5px 0 0 var(--comic-red); }
+.rankingEmpty { min-height: 80px; margin: 0; padding: 18px; border: 3px dashed var(--ink); color: #555; font-weight: 700; }
+
+@media (max-width: 700px) {
+  .rankings { width: min(100% - 20px, 560px); }
+  .rankingsHeader { align-items: flex-start; flex-direction: column; }
+  .rankingsHeader > span { text-align: left; }
+  .rankingGrid { grid-template-columns: 1fr; }
+  .rankingBoard + .rankingBoard { border-top: 5px solid var(--ink); border-left: 0; }
+}

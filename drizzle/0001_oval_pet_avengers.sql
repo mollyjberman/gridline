@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `country_code` text;
