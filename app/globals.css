@@ -115,6 +115,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--foreground); ou
 .shareCell { width: 36px; height: 36px; transform: skewX(-8deg); background: var(--red); }
 .shareCell.correct { background: var(--green); }
 .completeActions { display: flex; align-items: center; gap: 26px; }
+.shareResultStatus { margin: 14px 0 0 !important; color: var(--ink) !important; font-size: .72rem; font-weight: 900 !important; letter-spacing: .08em; }
 .countdown small, .countdown strong { display: block; }
 .countdown strong { margin-top: 5px; font-size: 1.1rem; }
 .statsStrip { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 14px; border: 1px solid var(--line); background: #101013; }

@@ -181,17 +181,179 @@ function Scoreboard({ score, mistakes }: { score: number; mistakes: number }) {
 }
 
 function Complete({ state, countdown }: { state: GameState; countdown: string }) {
-  const shareText = `Gridline Daily #${state.challengeNumber}\n🏁 ${state.score} correct · three lives\nCan you beat my run?`;
+  const [shareStatus, setShareStatus] = useState("");
+  const [creatingShare, setCreatingShare] = useState(false);
   async function share() {
-    if (navigator.share) await navigator.share({ text: shareText }).catch(() => undefined);
-    else await navigator.clipboard.writeText(shareText);
+    setCreatingShare(true);
+    setShareStatus("");
+    try {
+      const file = createResultStory(state);
+      const shareData = { files: [file], title: `Gridline Daily #${state.challengeNumber}`, text: `I scored ${state.score} on Gridline Daily. Can you beat my run?` };
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share(shareData);
+        setShareStatus("RESULT IMAGE SHARED!");
+      } else {
+        const url = URL.createObjectURL(file);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `gridline-${state.challengeNumber}-result.png`;
+        link.click();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+        setShareStatus("STORY IMAGE DOWNLOADED — READY TO POST!");
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setShareStatus("COULDN'T MAKE THE IMAGE. PLEASE TRY AGAIN.");
+    } finally {
+      setCreatingShare(false);
+    }
   }
   return (
     <div className="completeScreen">
       <div><p className="kicker">THREE STRIKES · CHEQUERED FLAG</p><h1><span>{state.score}</span> CORRECT!</h1><p>Your score is inked into the record. A fresh category and new run arrive at 12:00 AM Eastern.</p></div>
-      <div className="completeActions"><button className="primaryButton" onClick={share}>SHARE RESULT</button><div className="countdown"><small>NEXT GRID IN</small><strong>{countdown}</strong></div></div>
+      <div className="completeActions"><div><button className="primaryButton" onClick={share} disabled={creatingShare}>{creatingShare ? "MAKING IMAGE…" : "SHARE MY RESULT"}</button>{shareStatus && <p className="shareResultStatus" role="status">{shareStatus}</p>}</div><div className="countdown"><small>NEXT GRID IN</small><strong>{countdown}</strong></div></div>
     </div>
   );
+}
+
+function createResultStory(state: GameState) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1080;
+  canvas.height = 1920;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Canvas is unavailable.");
+
+  const ink = "#080a0c";
+  const paper = "#f4eddb";
+  const red = "#f12a2a";
+  const cyan = "#00c8e8";
+  const yellow = "#ffd62e";
+  const green = "#19a55a";
+  context.fillStyle = paper;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "rgba(8,10,12,.12)";
+  for (let y = 14; y < canvas.height; y += 22) for (let x = 14; x < canvas.width; x += 22) context.fillRect(x, y, 3, 3);
+
+  context.save();
+  context.translate(0, 360);
+  context.rotate(-0.055);
+  context.fillStyle = cyan;
+  context.fillRect(-80, 0, 1240, 430);
+  context.lineWidth = 12;
+  context.strokeStyle = ink;
+  context.strokeRect(-80, 0, 1240, 430);
+  context.restore();
+
+  context.fillStyle = ink;
+  context.fillRect(56, 54, 968, 138);
+  context.fillStyle = red;
+  context.fillRect(76, 78, 300, 90);
+  context.fillStyle = "white";
+  context.font = "900 62px Impact, Arial Black, sans-serif";
+  context.fillText("GRIDLINE", 104, 145);
+  context.fillStyle = yellow;
+  context.fillText("DAILY", 410, 145);
+  context.fillStyle = "white";
+  context.font = "800 34px Arial, sans-serif";
+  context.textAlign = "right";
+  context.fillText(`#${state.challengeNumber}`, 988, 140);
+
+  context.textAlign = "left";
+  context.fillStyle = ink;
+  context.font = "900 72px Impact, Arial Black, sans-serif";
+  context.fillText("CHEQUERED FLAG", 64, 308);
+  context.fillStyle = red;
+  context.font = "900 310px Impact, Arial Black, sans-serif";
+  context.lineWidth = 14;
+  context.strokeStyle = ink;
+  context.strokeText(String(state.score), 76, 650);
+  context.fillText(String(state.score), 76, 650);
+  context.fillStyle = paper;
+  context.strokeStyle = ink;
+  context.lineWidth = 8;
+  context.fillRect(420, 490, 420, 118);
+  context.strokeRect(420, 490, 420, 118);
+  context.fillStyle = ink;
+  context.font = "900 72px Impact, Arial Black, sans-serif";
+  context.fillText("CORRECT", 458, 575);
+
+  const cellsPerRow = Math.min(9, Math.max(1, state.answers.length));
+  const cellSize = state.answers.length > 9 ? 64 : 86;
+  const cellGap = state.answers.length > 9 ? 12 : 20;
+  state.answers.forEach((answer, index) => {
+    const row = Math.floor(index / cellsPerRow);
+    const column = index % cellsPerRow;
+    const cellsInRow = Math.min(cellsPerRow, state.answers.length - row * cellsPerRow);
+    const rowWidth = cellsInRow * cellSize + Math.max(0, cellsInRow - 1) * cellGap;
+    const cellX = (1080 - rowWidth) / 2 + column * (cellSize + cellGap);
+    const cellY = 748 + row * (cellSize + cellGap);
+    context.fillStyle = answer ? green : red;
+    context.fillRect(cellX, cellY, cellSize, cellSize);
+    context.lineWidth = 8;
+    context.strokeStyle = ink;
+    context.strokeRect(cellX, cellY, cellSize, cellSize);
+    context.fillStyle = "white";
+    context.font = `900 ${Math.round(cellSize * .67)}px Arial, sans-serif`;
+    context.textAlign = "center";
+    context.fillText(answer ? "✓" : "×", cellX + cellSize / 2, cellY + cellSize * .77);
+  });
+
+  context.textAlign = "left";
+  context.fillStyle = yellow;
+  context.fillRect(64, 910, 952, 126);
+  context.lineWidth = 10;
+  context.strokeStyle = ink;
+  context.strokeRect(64, 910, 952, 126);
+  context.fillStyle = ink;
+  context.font = "900 42px Arial, sans-serif";
+  context.fillText(`🔥 ${state.stats.streak} DAY STREAK`, 100, 990);
+  context.textAlign = "right";
+  context.fillText(state.stats.overallRank ? `WORLD #${state.stats.overallRank}` : "WORLD RANK —", 978, 990);
+
+  context.textAlign = "left";
+  context.fillStyle = ink;
+  context.font = "900 60px Impact, Arial Black, sans-serif";
+  context.fillText("WORLDWIDE LEADERBOARD", 64, 1145);
+  const leaders = state.leaderboards.worldwide.slice(0, 5);
+  leaders.forEach((entry, index) => {
+    const y = 1195 + index * 112;
+    context.fillStyle = entry.isCurrentUser ? yellow : index % 2 === 0 ? "white" : "#ddd4bf";
+    context.fillRect(64, y, 952, 90);
+    context.lineWidth = 6;
+    context.strokeStyle = ink;
+    context.strokeRect(64, y, 952, 90);
+    context.fillStyle = ink;
+    context.font = "900 38px Arial, sans-serif";
+    context.textAlign = "left";
+    context.fillText(`#${entry.rank}`, 92, y + 59);
+    const displayName = entry.isCurrentUser ? "YOU" : entry.name.slice(0, 18).toUpperCase();
+    context.fillText(displayName, 230, y + 59);
+    context.textAlign = "right";
+    context.font = "900 48px Impact, Arial Black, sans-serif";
+    context.fillText(String(entry.score), 980, y + 62);
+  });
+  if (leaders.length === 0) {
+    context.fillStyle = "white";
+    context.fillRect(64, 1195, 952, 90);
+    context.strokeStyle = ink;
+    context.strokeRect(64, 1195, 952, 90);
+    context.fillStyle = ink;
+    context.font = "800 34px Arial, sans-serif";
+    context.fillText("SET THE PACE — YOU'RE FIRST ON THE GRID", 100, 1252);
+  }
+
+  context.fillStyle = red;
+  context.fillRect(0, 1792, 1080, 128);
+  context.fillStyle = "white";
+  context.textAlign = "center";
+  context.font = "900 46px Impact, Arial Black, sans-serif";
+  context.fillText("CAN YOU BEAT MY RUN?", 540, 1850);
+  context.font = "800 27px Arial, sans-serif";
+  context.fillText("f1higherorlower.infinite-flow.chatgpt.site", 540, 1892);
+
+  const data = canvas.toDataURL("image/png").split(",")[1];
+  const bytes = Uint8Array.from(atob(data), (character) => character.charCodeAt(0));
+  return new File([bytes], `gridline-${state.challengeNumber}-result.png`, { type: "image/png" });
 }
 
 function Stats({ state }: { state: GameState }) {
