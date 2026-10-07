@@ -180,7 +180,7 @@ body {
 }
 
 .brand {
-  gap: 12px;
+  gap: 24px;
   transform: rotate(-1deg);
   font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
 }
@@ -188,8 +188,8 @@ body {
 .brandMark {
   display: grid;
   place-items: center;
-  width: 70px;
-  height: 46px;
+  width: 78px;
+  height: 52px;
   margin: 0;
   overflow: visible;
   clip-path: none;
@@ -197,9 +197,9 @@ body {
   background: transparent;
   box-shadow: none;
 }
-.brandMark img { width: 78px; height: 52px; max-width: none; object-fit: contain; filter: drop-shadow(3px 3px 0 var(--ink)); transform: rotate(-4deg); }
+.brandMark img { width: 86px; height: 57px; max-width: none; object-fit: contain; filter: contrast(1.18) saturate(1.12) drop-shadow(3px 3px 0 var(--ink)); transform: rotate(-4deg); }
 
-.brandLockup { display: grid; line-height: .85; }
+.brandLockup { display: grid; padding-left: 4px; line-height: .85; }
 .brandLockup b { font-size: 1.8rem; letter-spacing: -.02em; }
 .brandLockup small { margin-top: 6px; color: var(--comic-red); font: 800 .7rem/1 Inter, sans-serif; letter-spacing: .22em; }
 .brandLight { color: var(--comic-red); }
@@ -416,6 +416,10 @@ footer { color: #c8c8cf; }
 
 @media (max-width: 700px) {
   .topbar { min-height: 76px; }
+  .brand { gap: 16px; }
+  .brandMark { width: 66px; height: 46px; }
+  .brandMark img { width: 74px; height: 49px; }
+  .brandLockup { padding-left: 2px; }
   .brandLockup b { font-size: 1.45rem; }
   .gameShell, .stateCard { box-shadow: 8px 8px 0 var(--comic-red), 12px 12px 0 var(--ink); }
   .gameShell::before, .stateCard::before { height: 150px; background-position: 63% 58%; }
