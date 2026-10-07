@@ -3,6 +3,7 @@ import { getTeam, isTeamId, type TeamId } from "./teams";
 
 const COOKIE = "gridline_session";
 const SESSION_DAYS = 30;
+const PASSWORD_HASH_ITERATIONS = 100_000;
 const encoder = new TextEncoder();
 
 const blockedNames = [
@@ -41,8 +42,8 @@ export function validatePassword(input: unknown): string | null {
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: 210_000 }, key, 256);
-  return `pbkdf2_sha256$210000$${toBase64(salt)}$${toBase64(new Uint8Array(bits))}`;
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: PASSWORD_HASH_ITERATIONS }, key, 256);
+  return `pbkdf2_sha256$${PASSWORD_HASH_ITERATIONS}$${toBase64(salt)}$${toBase64(new Uint8Array(bits))}`;
 }
 
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
