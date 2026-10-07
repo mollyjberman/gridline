@@ -187,8 +187,9 @@ function Complete({ state, countdown }: { state: GameState; countdown: string })
     setCreatingShare(true);
     setShareStatus("");
     try {
-      const file = createResultStory(state);
-      const shareData = { files: [file], title: `Gridline Daily #${state.challengeNumber}`, text: `I scored ${state.score} on Gridline Daily. Can you beat my run?` };
+      const websiteUrl = window.location.origin;
+      const file = createResultStory(state, websiteUrl.replace(/^https?:\/\//, ""));
+      const shareData = { files: [file], title: `Gridline Daily #${state.challengeNumber}`, text: `I scored ${state.score} on Gridline Daily. Can you beat my run?\n${websiteUrl}` };
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share(shareData);
         setShareStatus("RESULT IMAGE SHARED!");
@@ -216,7 +217,7 @@ function Complete({ state, countdown }: { state: GameState; countdown: string })
   );
 }
 
-function createResultStory(state: GameState) {
+function createResultStory(state: GameState, websiteHost: string) {
   const canvas = document.createElement("canvas");
   canvas.width = 1080;
   canvas.height = 1920;
@@ -349,7 +350,7 @@ function createResultStory(state: GameState) {
   context.font = "900 46px Impact, Arial Black, sans-serif";
   context.fillText("CAN YOU BEAT MY RUN?", 540, 1850);
   context.font = "800 27px Arial, sans-serif";
-  context.fillText("f1higherorlower.infinite-flow.chatgpt.site", 540, 1892);
+  context.fillText(websiteHost, 540, 1892);
 
   const data = canvas.toDataURL("image/png").split(",")[1];
   const bytes = Uint8Array.from(atob(data), (character) => character.charCodeAt(0));
