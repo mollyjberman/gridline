@@ -363,6 +363,47 @@ body {
 .completeScreen h1 { color: var(--ink); text-shadow: 4px 4px 0 #fff, 7px 7px 0 var(--comic-cyan); }
 .completeScreen h1 span { color: var(--comic-red); }
 .completeScreen p:not(.kicker) { color: #282b31; font-weight: 700; }
+.completeLayout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 370px); align-items: center; gap: clamp(28px, 5vw, 64px); width: 100%; }
+.completeCopy { min-width: 0; }
+.socialResultCard {
+  position: relative;
+  isolation: isolate;
+  aspect-ratio: 1;
+  width: 100%;
+  max-width: 370px;
+  padding: 20px;
+  overflow: hidden;
+  transform: rotate(1.2deg);
+  border: 5px solid var(--ink);
+  background:
+    radial-gradient(circle, rgb(8 10 12 / 15%) 1px, transparent 1.6px),
+    var(--comic-yellow);
+  background-size: 9px 9px;
+  box-shadow: 10px 10px 0 var(--comic-red), 15px 15px 0 var(--ink);
+  color: var(--ink);
+}
+.socialResultCard::before { position: absolute; z-index: -1; inset: 43% -18% auto; height: 42%; transform: rotate(-8deg); background: var(--comic-cyan); border-block: 5px solid var(--ink); content: ""; }
+.socialCardTop { display: flex; align-items: center; gap: 7px; padding-bottom: 10px; border-bottom: 4px solid var(--ink); font-family: Impact, Haettenschweiler, sans-serif; letter-spacing: .06em; }
+.socialCardTop span { padding: 3px 7px; background: var(--comic-red); color: #fff; }
+.socialCardTop b { font-size: 1.15rem; }
+.socialCardTop small { margin-left: auto; font: 900 .8rem Inter, sans-serif; }
+.socialCardFlag { position: absolute; top: 55px; right: 16px; transform: rotate(10deg); font-size: 3.2rem; filter: drop-shadow(3px 3px 0 #fff); }
+.socialCardScore { display: flex; align-items: end; gap: 10px; margin-top: 18px; }
+.socialCardScore strong { font: 700 clamp(5.6rem, 10vw, 7.4rem)/.78 Impact, Haettenschweiler, sans-serif; color: var(--comic-red); -webkit-text-stroke: 3px var(--ink); text-shadow: 5px 5px 0 #fff; }
+.socialCardScore span { margin-bottom: 7px; padding: 4px 7px; transform: rotate(-2deg); border: 3px solid var(--ink); background: #fff; font: 700 1.1rem Impact, sans-serif; }
+.socialCardGrid { display: flex; flex-wrap: wrap; gap: 6px; min-height: 46px; margin: 24px 0 18px; }
+.socialCardGrid span { display: grid; place-items: center; width: 34px; height: 34px; border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); color: #fff; font: 900 1.25rem Inter, sans-serif; }
+.socialCardGrid .correct { background: #19a55a; }
+.socialCardGrid .miss { background: var(--comic-red); }
+.socialCardMeta { display: grid; gap: 5px; font-size: .72rem; font-weight: 900; letter-spacing: .04em; }
+.socialCardMeta span { width: fit-content; padding: 4px 7px; background: #fff; border: 2px solid var(--ink); }
+.socialCardFooter { position: absolute; right: 17px; bottom: 14px; left: 20px; display: flex; align-items: end; justify-content: space-between; gap: 10px; border-top: 4px solid var(--ink); padding-top: 8px; }
+.socialCardFooter b { font: 700 1rem Impact, sans-serif; letter-spacing: .04em; }
+.socialCardFooter span { font-size: .58rem; font-weight: 900; text-transform: uppercase; }
+.shareActions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.copyButton { padding: 14px 16px; border: 3px solid var(--ink); background: #fff; color: var(--ink); box-shadow: 4px 4px 0 var(--ink); cursor: pointer; font-weight: 900; letter-spacing: .06em; }
+.copyButton:hover { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
+.shareStatus { width: 100%; color: var(--ink); font-size: .72rem; font-weight: 900; letter-spacing: .08em; }
 .shareCell { border: 3px solid var(--ink); background: var(--comic-red); box-shadow: 3px 3px 0 var(--ink); }
 .statsStrip { border: 5px solid var(--ink); background: var(--comic-yellow); color: var(--ink); box-shadow: 9px 9px 0 var(--ink); }
 .statsStrip div { border-right: 4px solid var(--ink); }
@@ -388,6 +429,8 @@ footer { color: #c8c8cf; }
   .versus { position: absolute; z-index: 4; width: 54px; height: 54px; margin-top: 0; }
   .choiceButtons { gap: 14px; }
   .completeScreen { min-height: 590px; padding: 128px 24px 42px; }
+  .completeLayout { grid-template-columns: 1fr; }
+  .socialResultCard { max-width: 340px; margin-inline: auto; }
   .completeActions { align-items: flex-start; flex-direction: column; }
 }
 

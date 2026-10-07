@@ -181,15 +181,50 @@ function Scoreboard({ score, mistakes }: { score: number; mistakes: number }) {
 }
 
 function Complete({ state, countdown }: { state: GameState; countdown: string }) {
-  const shareText = `Gridline Daily #${state.challengeNumber}\n🏁 ${state.score} correct · three lives\nCan you beat my run?`;
+  const [shareStatus, setShareStatus] = useState("");
+  const team = getTeam(state.favoriteTeam);
+  const resultRow = state.answers.map((answer) => answer ? "🟩" : "🟥").join("");
+  const shareText = `GRIDLINE DAILY #${state.challengeNumber}\n${resultRow}\n🏁 ${state.score} correct · 🔥 ${state.stats.streak} day streak\n🏎️ ${team?.name ?? "On the grid"}\n\nCan you beat my run?`;
   async function share() {
-    if (navigator.share) await navigator.share({ text: shareText }).catch(() => undefined);
-    else await navigator.clipboard.writeText(shareText);
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `Gridline Daily #${state.challengeNumber}`, text: shareText, url: window.location.origin });
+        setShareStatus("POST SHARED!");
+      } else {
+        await copyCaption();
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setShareStatus("SHARING DIDN'T WORK — TRY COPY CAPTION");
+    }
+  }
+  async function copyCaption() {
+    try {
+      await navigator.clipboard.writeText(`${shareText}\n${window.location.origin}`);
+      setShareStatus("CAPTION COPIED!");
+    } catch {
+      setShareStatus("COPY DIDN'T WORK — SELECT THE CARD TEXT");
+    }
   }
   return (
     <div className="completeScreen">
-      <div><p className="kicker">THREE STRIKES · CHEQUERED FLAG</p><h1><span>{state.score}</span> CORRECT!</h1><p>Your score is inked into the record. A fresh category and new run arrive at 12:00 AM Eastern.</p></div>
-      <div className="completeActions"><button className="primaryButton" onClick={share}>SHARE RESULT</button><div className="countdown"><small>NEXT GRID IN</small><strong>{countdown}</strong></div></div>
+      <div className="completeLayout">
+        <div className="completeCopy"><p className="kicker">THREE STRIKES · CHEQUERED FLAG</p><h1><span>{state.score}</span> CORRECT!</h1><p>Your score is inked into the record. A fresh category and new run arrive at 12:00 AM Eastern.</p></div>
+        <article className="socialResultCard" aria-label={`Share card: ${state.score} correct on Gridline Daily issue ${state.challengeNumber}`}>
+          <div className="socialCardTop"><span>GRIDLINE</span><b>DAILY</b><small>#{state.challengeNumber}</small></div>
+          <div className="socialCardFlag" aria-hidden="true">🏁</div>
+          <div className="socialCardScore"><strong>{state.score}</strong><span>CORRECT</span></div>
+          <div className="socialCardGrid" aria-label={state.answers.map((answer) => answer ? "correct" : "miss").join(", ")}>
+            {state.answers.map((answer, index) => <span key={index} className={answer ? "correct" : "miss"}>{answer ? "✓" : "×"}</span>)}
+          </div>
+          <div className="socialCardMeta"><span>🔥 {state.stats.streak} DAY STREAK</span><span>🏎️ {team?.name.toUpperCase() ?? "ON THE GRID"}</span></div>
+          <div className="socialCardFooter"><b>CAN YOU BEAT MY RUN?</b><span>gridline daily</span></div>
+        </article>
+      </div>
+      <div className="completeActions">
+        <div className="shareActions"><button className="primaryButton" onClick={share}>SHARE POST</button><button className="copyButton" onClick={copyCaption}>COPY CAPTION</button>{shareStatus && <span className="shareStatus" role="status">{shareStatus}</span>}</div>
+        <div className="countdown"><small>NEXT GRID IN</small><strong>{countdown}</strong></div>
+      </div>
     </div>
   );
 }
